@@ -6,13 +6,14 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"strconv"
 )
 
 // TODO: add json encoding
 type Book struct {
 	name  string
 	genre string
-	price float32
+	price float64
 }
 
 func generateDB() []Book {
@@ -32,23 +33,43 @@ func getAllBooksHandler(w http.ResponseWriter, req *http.Request, db []Book) {
 }
 
 func getBookHandler(w http.ResponseWriter, req *http.Request, db []Book) {
-	param1 := req.URL.Query().Get("name")
+	nameParam := req.URL.Query().Get("name")
 
 	for _, book := range db {
-		if book.name == param1 {
+		if book.name == nameParam {
 			bookPriceRounded := fmt.Sprintf("%.2f", book.price)
 			msg := fmt.Sprintf("name: %s | genre: %s | price: %s \n", book.name, book.genre, bookPriceRounded)
 			fmt.Fprintf(w, msg)
-		} else {
-			msg := fmt.Sprint(w, "cannot find book of name ", param1)
-			fmt.Fprintf(w, "cannot find book of name ", msg)
+			return
 		}
 	}
+
+	msg := fmt.Sprint(w, "cannot find book of name ", nameParam)
+	fmt.Fprintf(w, msg)
 }
 
+func setBookHandler(w http.ResponseWriter, req *http.Request, db *[]Book) {
+	//check if request type is post
+	//unmarshal json data
+	//append to data base
+	nameParam := req.URL.Query().Get("name")
+	genreParam := req.URL.Query().Get("genre")
+	priceParam := req.URL.Query().Get("price")
+
+	fmt.Println(nameParam, genreParam, priceParam)
+	
+	floatPriceParam, err := strconv.ParseFloat(priceParam, 64)
+	if err != nil {
+		// TODO: add proper error handling
+		fmt.Println("Could not convert book price (string) into float")
+	}
+
+	*db = append(*db, Book{name: nameParam, genre: genreParam, price: floatPriceParam})
+}
+
+// TODO: add proper error response
 func main() {
 
-	// TODO: add proper response
 	db := generateDB()
 
 	fmt.Println(db)
@@ -62,5 +83,12 @@ func main() {
 		getBookHandler(w, r, db)
 	})
 
+	http.HandleFunc("/setBook", func(w http.ResponseWriter, r *http.Request) {
+		setBookHandler(w, r, &db)
+		fmt.Println(db)
+	})
+
 	http.ListenAndServe(":8090", nil)
 }
+
+// curl http://localhost:8090/getBook?name=harry-potter
